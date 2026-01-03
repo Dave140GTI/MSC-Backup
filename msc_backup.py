@@ -1,133 +1,140 @@
-import os
-import shutil
-from datetime import datetime
 import tkinter as tk
-from tkinter import filedialog, simpledialog, messagebox
+from tkinter import filedialog, messagebox, simpledialog, font
+import shutil
+import os
 
-# --- Global Variables ---
-mods_folder = ""
-save_folder = ""
-desktop = os.path.join(os.path.join(os.environ['USERPROFILE']), 'Desktop')
-base_folder = os.path.join(desktop, "Ultimate MSC Backuper")
-backup_base = os.path.join(base_folder, "Backups")
+# Uloží config do Dokumentů
+CONFIG_FILE = os.path.join(os.path.expanduser("~"), "Documents", "mscbackupConfig.txt")
 
-# Ensure base folders exist
-os.makedirs(backup_base, exist_ok=True)
+class FolderSelectorApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Ultimate MSC Backuper V2")
+        self.root.geometry("600x250")
+        self.root.resizable(False, False)
 
-# --- Functions ---
-def select_mods_folder():
-    global mods_folder
-    folder = filedialog.askdirectory(title="Select My Summer Car Mods folder")
-    if folder:
-        mods_folder = folder
-        lbl_mods.config(text=f"Mods folder: {mods_folder}")
+        # Fonty
+        self.label_font = font.Font(family="Arial", size=11, weight="bold")
+        self.button_font = font.Font(family="Arial", size=10)
 
-def select_save_folder():
-    global save_folder
-    folder = filedialog.askdirectory(title="Select My Summer Car Save folder")
-    if folder:
-        save_folder = folder
-        lbl_save.config(text=f"Save folder: {save_folder}")
+        # Načtení uložených cest
+        self.save_folder_var = tk.StringVar()
+        self.mod_folder_var = tk.StringVar()
+        self.backup_folder_var = tk.StringVar()
+        self.load_config()
 
-def create_backup():
-    if not mods_folder or not save_folder:
-        messagebox.showerror("Error", "Please select both Mods and Save folders first!")
-        return
-    
-    # Ask user for backup name
-    backup_name = simpledialog.askstring("Backup Name", "Enter a name for this backup:")
-    if not backup_name:
-        return
+        # Save folder
+        tk.Label(root, text="Save folder:", font=self.label_font).grid(row=0, column=0, padx=10, pady=10, sticky="w")
+        self.save_entry = tk.Entry(root, textvariable=self.save_folder_var, width=50)
+        self.save_entry.grid(row=0, column=1, padx=10)
+        tk.Button(root, text="Select", font=self.button_font, command=self.select_save_folder).grid(row=0, column=2, padx=10)
 
-    # Create backup folder
-    backup_path = os.path.join(backup_base, backup_name)
-    if os.path.exists(backup_path):
-        messagebox.showerror("Error", "Backup with this name already exists!")
-        return
-    os.makedirs(backup_path, exist_ok=True)
+        # Mod folder
+        tk.Label(root, text="Mod folder:", font=self.label_font).grid(row=1, column=0, padx=10, pady=10, sticky="w")
+        self.mod_entry = tk.Entry(root, textvariable=self.mod_folder_var, width=50)
+        self.mod_entry.grid(row=1, column=1, padx=10)
+        tk.Button(root, text="Select", font=self.button_font, command=self.select_mod_folder).grid(row=1, column=2, padx=10)
 
-    # Copy Mods folder recursively
-    mods_backup_path = os.path.join(backup_path, "Mods")
-    shutil.copytree(mods_folder, mods_backup_path)
+        # Backup folder
+        tk.Label(root, text="Backup destination:", font=self.label_font).grid(row=2, column=0, padx=10, pady=10, sticky="w")
+        self.backup_entry = tk.Entry(root, textvariable=self.backup_folder_var, width=50)
+        self.backup_entry.grid(row=2, column=1, padx=10)
+        tk.Button(root, text="Select", font=self.button_font, command=self.select_backup_folder).grid(row=2, column=2, padx=10)
 
-    # Copy Save folder recursively
-    save_backup_path = os.path.join(backup_path, "Save")
-    shutil.copytree(save_folder, save_backup_path)
+        # Confirm button
+        self.btn_confirm = tk.Button(root, text="Confirm", width=40, font=self.button_font, bg="#4CAF50", fg="white", command=self.confirm)
+        self.btn_confirm.grid(row=3, column=0, columnspan=3, pady=20)
 
-    messagebox.showinfo("Done", f"Backup created: {backup_path}")
-    update_backup_list()
+        # Create Backup button (hidden at start)
+        self.btn_create_backup = tk.Button(root, text="Create Backup", width=40, font=self.button_font, bg="#2196F3", fg="white", command=self.create_backup)
+        self.btn_create_backup.grid(row=4, column=0, columnspan=3, pady=10)
+        self.btn_create_backup.grid_remove()
 
-def load_backup():
-    selection = listbox.get(listbox.curselection()) if listbox.curselection() else None
-    if not selection or selection == "No backups found":
-        messagebox.showerror("Error", "Select a backup from the list!")
-        return
-    
-    backup_path = os.path.join(backup_base, selection)
-    
-    # Restore Mods
-    mods_backup_path = os.path.join(backup_path, "Mods")
-    if mods_folder and os.path.exists(mods_backup_path):
-        # Remove existing content in mods_folder
-        if os.path.exists(mods_folder):
-            shutil.rmtree(mods_folder)
-        shutil.copytree(mods_backup_path, mods_folder)
+    # --- Folder selection ---
+    def select_save_folder(self):
+        folder = filedialog.askdirectory(title="Select save folder")
+        if folder:
+            self.save_folder_var.set(folder)
 
-    # Restore Save
-    save_backup_path = os.path.join(backup_path, "Save")
-    if save_folder and os.path.exists(save_backup_path):
-        if os.path.exists(save_folder):
-            shutil.rmtree(save_folder)
-        shutil.copytree(save_backup_path, save_folder)
+    def select_mod_folder(self):
+        folder = filedialog.askdirectory(title="Select mod folder")
+        if folder:
+            self.mod_folder_var.set(folder)
 
-    messagebox.showinfo("Done", f"Backup loaded: {selection}")
+    def select_backup_folder(self):
+        folder = filedialog.askdirectory(title="Select backup destination")
+        if folder:
+            self.backup_folder_var.set(folder)
 
-def update_backup_list():
-    listbox.delete(0, tk.END)
-    # Ensure backup folder exists
-    os.makedirs(backup_base, exist_ok=True)
-    # List only folders
-    items = [d for d in os.listdir(backup_base) if os.path.isdir(os.path.join(backup_base, d))]
-    if not items:
-        listbox.insert(tk.END, "No backups found")
-    else:
-        for item in sorted(items, reverse=True):
-            listbox.insert(tk.END, item)
+    # --- Confirm ---
+    def confirm(self):
+        if not self.save_folder_var.get() or not self.mod_folder_var.get() or not self.backup_folder_var.get():
+            messagebox.showwarning("Warning", "Please select all folders!")
+            return
+        # Uloží cesty do configu
+        self.save_config()
+        # Zobrazí Create Backup button
+        self.btn_create_backup.grid()
 
-def refresh_list():
-    update_backup_list()
+    # --- Backup ---
+    def create_backup(self):
+        backup_name = simpledialog.askstring("Backup Name", "Enter a name for your backup folder:")
+        if not backup_name:
+            messagebox.showwarning("Cancelled", "Backup cancelled, no name provided.")
+            return
 
-# --- GUI ---
-root = tk.Tk()
-root.title("Ultimate MSC Backuper")
+        backup_path = os.path.join(self.backup_folder_var.get(), backup_name)
+        save_dest = os.path.join(backup_path, "Save")
+        mod_dest = os.path.join(backup_path, "Mod")
 
-lbl_mods = tk.Label(root, text="Mods folder: not selected", wraplength=400)
-lbl_mods.pack(pady=5)
-btn_mods = tk.Button(root, text="Select Mods folder", command=select_mods_folder)
-btn_mods.pack(pady=5)
+        try:
+            os.makedirs(save_dest, exist_ok=True)
+            os.makedirs(mod_dest, exist_ok=True)
 
-lbl_save = tk.Label(root, text="Save folder: not selected", wraplength=400)
-lbl_save.pack(pady=5)
-btn_save = tk.Button(root, text="Select Save folder", command=select_save_folder)
-btn_save.pack(pady=5)
+            if os.path.exists(self.save_folder_var.get()):
+                self.copy_folder_contents(self.save_folder_var.get(), save_dest)
 
-btn_backup = tk.Button(root, text="Create Backup", command=create_backup)
-btn_backup.pack(pady=5)
+            if os.path.exists(self.mod_folder_var.get()):
+                self.copy_folder_contents(self.mod_folder_var.get(), mod_dest)
 
-btn_refresh = tk.Button(root, text="Refresh Backup List", command=refresh_list)
-btn_refresh.pack(pady=5)
+            messagebox.showinfo("Success", f"Backup created successfully at:\n{backup_path}")
 
-lbl_backups = tk.Label(root, text="List of backups:")
-lbl_backups.pack(pady=5)
+        except Exception as e:
+            messagebox.showerror("Error", f"An error occurred: {e}")
 
-listbox = tk.Listbox(root, width=60)
-listbox.pack(pady=5)
+    @staticmethod
+    def copy_folder_contents(src, dest):
+        for item in os.listdir(src):
+            s = os.path.join(src, item)
+            d = os.path.join(dest, item)
+            if os.path.isdir(s):
+                shutil.copytree(s, d, dirs_exist_ok=True)
+            else:
+                shutil.copy2(s, d)
 
-btn_load = tk.Button(root, text="Load Selected Backup", command=load_backup)
-btn_load.pack(pady=5)
+    # --- Config management ---
+    def save_config(self):
+        try:
+            with open(CONFIG_FILE, "w") as f:
+                f.write(self.save_folder_var.get() + "\n")
+                f.write(self.mod_folder_var.get() + "\n")
+                f.write(self.backup_folder_var.get() + "\n")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to save config: {e}")
 
-lbl_credit = tk.Label(root, text="Created by: Dave14", font=("Arial", 8), fg="gray")
-lbl_credit.pack(pady=5)
+    def load_config(self):
+        if os.path.exists(CONFIG_FILE):
+            try:
+                with open(CONFIG_FILE, "r") as f:
+                    lines = f.read().splitlines()
+                    if len(lines) >= 3:
+                        self.save_folder_var.set(lines[0])
+                        self.mod_folder_var.set(lines[1])
+                        self.backup_folder_var.set(lines[2])
+            except:
+                pass
 
-update_backup_list()
-root.mainloop()
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = FolderSelectorApp(root)
+    root.mainloop()
